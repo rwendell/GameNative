@@ -605,8 +605,7 @@ fun SettingsGroupInterface(
         val externalStorageFallbackLabel = stringResource(R.string.storage_external)
         val dirs by produceState(initialValue = emptyList<File>(), ctx) {
             value = withContext(Dispatchers.IO) {
-                StorageUtils.getAllExternalFilesDirs(ctx)
-                    .filter { Environment.getExternalStorageState(it) == Environment.MEDIA_MOUNTED }
+                    StorageUtils.getAllExternalFilesDirs(ctx)
                     .filter { sm?.getStorageVolume(it)?.isPrimary != true }
             }
         }

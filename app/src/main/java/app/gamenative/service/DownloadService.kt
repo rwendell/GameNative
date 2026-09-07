@@ -1,7 +1,6 @@
 package app.gamenative.service
 
 import android.content.Context
-import android.os.Environment
 import app.gamenative.PrefManager
 import app.gamenative.utils.StorageUtils
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +38,6 @@ object DownloadService {
 
         val sm = context.getSystemService(android.os.storage.StorageManager::class.java)
         val appFilesDirs = StorageUtils.getAllExternalFilesDirs(context)
-            .filter { Environment.getExternalStorageState(it) == Environment.MEDIA_MOUNTED }
             .filter { sm?.getStorageVolume(it)?.isPrimary != true }
         // both layouts per volume: legacy Android/data (existing installs) + public root (new installs)
         externalVolumePaths = appFilesDirs
