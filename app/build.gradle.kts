@@ -167,6 +167,7 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".usb"
         }
         release {
             isMinifyEnabled = true
