@@ -605,24 +605,37 @@ fun SettingsGroupInterface(
         val externalStorageFallbackLabel = stringResource(R.string.storage_external)
         val dirs by produceState(initialValue = emptyList<File>(), ctx) {
             value = withContext(Dispatchers.IO) {
-                    StorageUtils.getAllExternalFilesDirs(ctx)
+                StorageUtils.getAllExternalFilesDirs(ctx)
                     .filter { sm?.getStorageVolume(it)?.isPrimary != true }
             }
         }
 
+        // Some Samsung USB mounts do not expose an app-specific Android/data directory.
+        // Keep the mounted volume root as a usable fallback instead of reporting no storage.
+        val volumeRoots = remember(sm, dirs) {
+            if (dirs.isNotEmpty()) {
+                dirs
+            } else {
+                sm?.storageVolumes
+                    ?.filter { it.state == Environment.MEDIA_MOUNTED && !it.isPrimary }
+                    ?.mapNotNull { it.directory }
+                    ?: emptyList()
+            }
+        }
+
         // Labels the user sees
-        val labels = remember(dirs) {
-            dirs.map { dir ->
+        val labels = remember(volumeRoots) {
+            volumeRoots.map { dir ->
                 sm?.getStorageVolume(dir)?.getDescription(ctx) ?: externalStorageFallbackLabel
             }
         }
         var useExternalStorage by rememberSaveable { mutableStateOf(PrefManager.useExternalStorage) }
         SettingsSwitch(
             colors = settingsTileColorsAlt(),
-            enabled = dirs.isNotEmpty(),
+            enabled = volumeRoots.isNotEmpty(),
             title = { Text(text = stringResource(R.string.settings_interface_external_storage_title)) },
             subtitle = {
-                if (dirs.isEmpty())
+                if (volumeRoots.isEmpty())
                     Text(stringResource(R.string.settings_interface_no_external_storage))
                 else
                     Text(stringResource(R.string.settings_interface_external_storage_subtitle))
@@ -631,16 +644,16 @@ fun SettingsGroupInterface(
             onCheckedChange = {
                 useExternalStorage = it
                 PrefManager.useExternalStorage = it
-                if (it && dirs.isNotEmpty()) {
-                    PrefManager.externalStoragePath = StorageUtils.preferredInstallRoot(dirs[0])
+                if (it && volumeRoots.isNotEmpty()) {
+                    PrefManager.externalStoragePath = StorageUtils.preferredInstallRoot(volumeRoots[0])
                 }
             },
         )
         if (useExternalStorage) {
             // Currently selected item
-            var selectedIndex by rememberSaveable(dirs) {
+            var selectedIndex by rememberSaveable(volumeRoots) {
                 mutableStateOf(
-                    dirs.indexOfFirst { dir ->
+                    volumeRoots.indexOfFirst { dir ->
                         dir.absolutePath == PrefManager.externalStoragePath ||
                             StorageUtils.publicInstallRoot(dir)?.absolutePath == PrefManager.externalStoragePath
                     }.takeIf { it >= 0 } ?: 0,
@@ -652,7 +665,7 @@ fun SettingsGroupInterface(
                 value = selectedIndex,
                 onItemSelected = { idx ->
                     selectedIndex = idx
-                    PrefManager.externalStoragePath = StorageUtils.preferredInstallRoot(dirs[idx])
+                    PrefManager.externalStoragePath = StorageUtils.preferredInstallRoot(volumeRoots[idx])
                 },
                 colors = settingsTileColorsAlt(),
             )
